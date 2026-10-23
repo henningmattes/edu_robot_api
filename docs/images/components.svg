@@ -31,7 +31,7 @@
 			<path d="M 235,389 L 306,389 Z" style="stroke: rgb(20%,25%,33%); stroke-linecap: butt; stroke-width: 0.85;"/>
 			<path d="M 297,393 L 306,389 Z" style="stroke: rgb(20%,25%,33%); stroke-linecap: butt; stroke-width: 0.85;"/>
 			<path d="M 297,385 L 306,389 Z" style="stroke: rgb(20%,25%,33%); stroke-linecap: butt; stroke-width: 0.85;"/>
-			<text x="256.194" y="397" style="font-family: Helvetica; font-size: 7.2px;fill: rgb(20%,25%,33%); stroke:none;" transform="translate(0,794) scale(1,-1)">delegiert</text>
+			<text x="256.194" y="397" style="font-family: Helvetica; font-size: 7.2px;fill: rgb(20%,25%,33%); stroke:none;" transform="translate(0,794) scale(1,-1)">delegates</text>
 			<text x="294" y="377" style="font-family: Helvetica; font-size: 7px;fill: rgb(20%,25%,33%); stroke:none;" transform="translate(0,754) scale(1,-1)">1</text>
 			<rect x="306" y="220" width="205" height="68" style="stroke: rgb(20%,25%,33%); stroke-linecap: butt; stroke-width: 0.8; fill: rgb(100%,100%,100%); fill-rule: evenodd;"/>
 			<rect x="306" y="264" width="205" height="24" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(90%,93%,100%); fill-rule: evenodd;"/>
@@ -43,8 +43,8 @@
 			<text x="313" y="228" style="font-family: Helvetica; font-size: 7.7px;fill: rgb(20%,25%,33%); stroke:none;" transform="translate(0,456) scale(1,-1)">+ call(operation: str, *args): Any</text>
 			<path d="M 408,288 L 408,355 Z" style="stroke: rgb(20%,25%,33%); stroke-linecap: butt; stroke-width: 0.85; stroke-dasharray: 4, 3;"/>
 			<polygon points="408 355, 404 346, 412 346" style="stroke: rgb(20%,25%,33%); stroke-linecap: butt; stroke-width: 1; fill: rgb(100%,100%,100%); fill-rule: evenodd;"/>
-			<text x="309" y="331" style="font-family: Helvetica; font-size: 7.2px;fill: rgb(20%,25%,33%); stroke:none;" transform="translate(0,662) scale(1,-1)">erfüllt strukturell</text>
-			<text x="309" y="319" style="font-family: Helvetica; font-size: 7.2px;fill: rgb(20%,25%,33%); stroke:none;" transform="translate(0,638) scale(1,-1)">ohne Vererbung</text>
+			<text x="309" y="331" style="font-family: Helvetica; font-size: 7.2px;fill: rgb(20%,25%,33%); stroke:none;" transform="translate(0,662) scale(1,-1)">implements protocol</text>
+			<text x="309" y="319" style="font-family: Helvetica; font-size: 7.2px;fill: rgb(20%,25%,33%); stroke:none;" transform="translate(0,638) scale(1,-1)">without inheritance</text>
 			<rect x="306" y="105" width="205" height="88" style="stroke: rgb(20%,25%,33%); stroke-linecap: butt; stroke-width: 0.8; fill: rgb(100%,100%,100%); fill-rule: evenodd;"/>
 			<rect x="306" y="169" width="205" height="24" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(90%,93%,100%); fill-rule: evenodd;"/>
 			<rect x="306" y="105" width="205" height="88" style="stroke: rgb(20%,25%,33%); stroke-linecap: butt; stroke-width: 0.8; fill: none; fill-rule: evenodd;"/>
@@ -59,7 +59,7 @@
 			<path d="M 272,150 L 306,150 Z" style="stroke: rgb(20%,25%,33%); stroke-linecap: butt; stroke-width: 0.85; stroke-dasharray: 4, 3;"/>
 			<path d="M 297,154 L 306,150 Z" style="stroke: rgb(20%,25%,33%); stroke-linecap: butt; stroke-width: 0.85;"/>
 			<path d="M 297,146 L 306,150 Z" style="stroke: rgb(20%,25%,33%); stroke-linecap: butt; stroke-width: 0.85;"/>
-			<text x="256.994" y="310" style="font-family: Helvetica; font-size: 7.2px;fill: rgb(20%,25%,33%); stroke:none;" transform="translate(0,620) scale(1,-1)">erzeugt</text>
+			<text x="256.994" y="310" style="font-family: Helvetica; font-size: 7.2px;fill: rgb(20%,25%,33%); stroke:none;" transform="translate(0,620) scale(1,-1)">creates</text>
 			<rect x="0" y="130" width="235" height="104" style="stroke: rgb(20%,25%,33%); stroke-linecap: butt; stroke-width: 0.8; fill: rgb(100%,100%,100%); fill-rule: evenodd;"/>
 			<rect x="0" y="210" width="235" height="24" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(90%,93%,100%); fill-rule: evenodd;"/>
 			<rect x="0" y="130" width="235" height="104" style="stroke: rgb(20%,25%,33%); stroke-linecap: butt; stroke-width: 0.8; fill: none; fill-rule: evenodd;"/>
@@ -75,7 +75,7 @@
 			<polygon points="117 282, 120 276, 117 270, 114 276" style="stroke: rgb(20%,25%,33%); stroke-linecap: butt; stroke-width: 1; fill: rgb(20%,25%,33%); fill-rule: evenodd;"/>
 			<text x="124" y="272" style="font-family: Helvetica; font-size: 7.2px;fill: rgb(20%,25%,33%); stroke:none;" transform="translate(0,544) scale(1,-1)">1</text>
 			<text x="124" y="237" style="font-family: Helvetica; font-size: 7.2px;fill: rgb(20%,25%,33%); stroke:none;" transform="translate(0,474) scale(1,-1)">0..*</text>
-			<text x="155" y="261" style="font-family: Helvetica; font-size: 7.2px;fill: rgb(20%,25%,33%); stroke:none;" transform="translate(0,522) scale(1,-1)">besitzt</text>
+			<text x="155" y="261" style="font-family: Helvetica; font-size: 7.2px;fill: rgb(20%,25%,33%); stroke:none;" transform="translate(0,522) scale(1,-1)">owns</text>
 			<rect x="0" y="12" width="235" height="64" style="stroke: rgb(20%,25%,33%); stroke-linecap: butt; stroke-width: 0.8; fill: rgb(100%,100%,100%); fill-rule: evenodd;"/>
 			<rect x="0" y="52" width="235" height="24" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(90%,93%,100%); fill-rule: evenodd;"/>
 			<rect x="0" y="12" width="235" height="64" style="stroke: rgb(20%,25%,33%); stroke-linecap: butt; stroke-width: 0.8; fill: none; fill-rule: evenodd;"/>

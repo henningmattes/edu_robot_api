@@ -1,119 +1,116 @@
 # edu_robot_api
 
-Eine Python-API zum Lernen und Programmieren mit Robotern. Roboter, Sensoren
-und Aktoren werden als Objekte angesprochen; Messwerte und Steuerbefehle
-verwenden eine gemeinsame Schnittstelle.
+A Python API for educational robotics. Robots, sensors and actuators are
+represented as objects, with a consistent interface for reading measurements
+and issuing control commands.
 
-RoboWorkbench verwendet diese API für eigenständige virtuelle Lernroboter.
-Ihre Eigenschaften werden durch das gewählte Modell und die Lernwelt bestimmt.
+RoboWorkbench uses this API for independent virtual learning robots. Their
+properties are defined by the selected model and learning environment.
 
 ## Installation
 
-Voraussetzung für die lokale Verwendung ist Python 3.11 oder neuer.
-Nach dem Herunterladen dieses Repositorys im Hauptverzeichnis ausführen:
+Local use requires Python 3.11 or later. After downloading this repository,
+run the following command from its root directory:
 
-```powershell
+```sh
 python -m pip install ./wheels/edu_robot_api-0.6.0-py3-none-any.whl
 ```
 
-Der Python-Import lautet:
+Import the robot class in Python with:
 
 ```python
 from edu_robot_api import Robot
 ```
 
-Die Installation stellt die Klassen der Bibliothek bereit. Sie erzeugt allein
-noch keinen Roboter und startet keine Simulation. Eine eigene Python-Anwendung
-stellt das Roboterobjekt und dessen Ausführungsumgebung bereit.
+Installing the library makes its classes available. It does not create a robot
+or start a simulation. A standalone Python application must supply the robot
+object and its execution environment.
 
-Der Quelltext liegt in [core/](core/), das Installationspaket in [wheels/](wheels/).
-[SHA256.json](SHA256.json) enthält die Prüfsummen der Dateien.
+Source code is in [core/](core/), and the installation package is in
+[wheels/](wheels/). [SHA256.json](SHA256.json) contains file checksums.
 
-## Ein Programm in RoboWorkbench
+## Programming in RoboWorkbench
 
-In der Web-App ist keine lokale Installation nötig. Der Roboter des jeweiligen
-Editors steht bei Programmstart bereits als `rob` bereit. Das Programm muss
-keinen Roboternamen angeben und keine Verbindung aufbauen. Jeder Editor steuert
-seinen eigenen Roboter.
+No local installation is needed in the web app. Each editor's robot is already
+available as `rob` when its program starts. The program does not need to specify
+a robot name or establish a connection. Each editor controls its own robot.
 
-Dieses Beispiel benötigt einen Front-Abstandssensor. Es fährt vorwärts, solange
-der Abstand mindestens 25 cm beträgt, und hält andernfalls an:
+This example requires a front distance sensor. It moves forward while the
+measured distance is at least 25 cm and stops otherwise:
 
 ```python
 import time
 
 
-def programm(rob):
-    abstand = rob.sensors()["distance_front"]
+def program(robot):
+    front_sensor = robot.sensors()["distance_front"]
     while True:
-        wert = abstand.read()
-        if wert is None or wert < 25:
-            rob.stop()
+        distance = front_sensor.read()
+        if distance is None or distance < 25:
+            robot.stop()
         else:
-            rob.forward(30)
+            robot.forward(30)
         time.sleep(0.03)
 
 
-programm(rob)
+program(rob)
 ```
 
-Die Web-App stoppt den Roboter und gibt seine Verbindung bei Programmende,
-Fehler, Stop oder Reset frei. Im Anwendercode ist dafür kein `try/finally`
-erforderlich. Fehler beim Sensorzugriff oder in der eigenen Logik sind
-weiterhin möglich.
+The web app stops the robot and releases its connection when the program ends,
+fails, or is stopped or reset. User programs do not need `try/finally` for this
+cleanup. Sensor access and programming mistakes can still raise exceptions.
 
-Bei zwei Robotern erhält jeder seinen eigenen Quelltext im jeweiligen Editor.
-Beide Programme laufen nebenläufig; `time.sleep()` in einem Programm blockiert
-das andere nicht. Die Variable `rob` bezeichnet in jedem Programm dessen eigenen
-Roboter. Ein Zugriff auf den Roboter des anderen Editors ist nicht erlaubt.
+With two robots, each has its own source code in its own editor. Both programs
+run concurrently; `time.sleep()` in one does not block the other. In each program,
+`rob` refers to that program's robot. A program cannot take control of another
+editor's robot.
 
-## Sensoren und Aktoren
+## Sensors and actuators
 
-`rob.sensors()` und `rob.actuators()` liefern Dictionaries mit Bauteilobjekten.
-Verfügbare Komponenten hängen vom ausgewählten Modell ab. Die Klasse beschreibt
-die Fähigkeiten; der Name beschreibt die Verwendung einer konkreten Komponente.
+`rob.sensors()` and `rob.actuators()` return dictionaries of component objects.
+Available components depend on the selected model. A class describes a
+component's capabilities; its name describes its role in a particular robot.
 
 ```python
-links = rob.sensors()["line_left"]
-rechts = rob.sensors()["line_right"]
-werte = rob.read_sensors([links, rechts])
-print(werte[links], werte[rechts])
+left = rob.sensors()["line_left"]
+right = rob.sensors()["line_right"]
+readings = rob.read_sensors([left, right])
+print(readings[left], readings[right])
 ```
 
-`sensor.read()` liest einen einzelnen Sensor. `rob.read_sensors()` liefert eine
-gemeinsame Aufnahme. Deren Werte lassen sich über Sensorobjekt, aufgenommenen
-Namen oder Position in der Auswahl abrufen. `None` bezeichnet einen fehlenden
-Messwert. Ein nicht vorhandener Sensor oder eine fehlende Fähigkeit ist davon
-zu unterscheiden und kann eine Exception auslösen.
+`sensor.read()` reads an individual sensor. `rob.read_sensors()` captures a
+snapshot. Values can be accessed by sensor object, captured name or position
+in the selection. `None` indicates an unavailable measurement. An absent sensor
+or an unsupported capability is a different situation and can raise an exception.
 
-## Bewegung und Einheiten
+## Movement and units
 
-| Aufruf | Wirkung |
+| Call | Effect |
 | --- | --- |
-| `rob.forward(30)` | Vorwärts mit 30 Prozent Motorleistung |
-| `rob.backward(30)` | Rückwärts mit 30 Prozent Motorleistung |
-| `rob.drive(30, 10)` | Fahren mit positiver Lenkung nach rechts |
-| `rob.stop()` | Motoren stoppen |
-| `rob.set_speed(40)` | Standard-Motorleistung für nachfolgende Befehle setzen |
+| `rob.forward(30)` | Move forward at 30 percent motor power |
+| `rob.backward(30)` | Move backward at 30 percent motor power |
+| `rob.drive(30, 10)` | Drive with positive steering to the right |
+| `rob.stop()` | Stop the motors |
+| `rob.set_speed(40)` | Set the default motor power for subsequent commands |
 
-Abstände werden in Zentimetern, Winkel in Grad und Motorleistungen in Prozent
-angegeben. Motorleistung ist keine garantierte Fahrgeschwindigkeit. Fahrverhalten
-und Messwerte hängen vom Modell, der Welt und den Umgebungsbedingungen ab.
+Distances are expressed in centimeters, angles in degrees and motor power as a
+percentage. Motor power is not a guaranteed speed. Motion and measurements
+depend on the model, world and environmental conditions.
 
-## Aufbau der API
+## API structure
 
-`Robot` besitzt Sensor- und Aktorobjekte und delegiert Operationen an ein
-`Backend`. Das ist ein Python-`Protocol`: Eine passende Implementierung stellt
-die Methode `call(operation, *args)` bereit. `FunctionBackend` erfüllt diesen
-Vertrag über eine Zuordnung von Operationsnamen zu Python-Funktionen.
+`Robot` owns sensor and actuator objects and delegates operations to a `Backend`.
+This is a Python `Protocol`: a compatible implementation provides the method
+`call(operation, *args)`. `FunctionBackend` satisfies this contract through a
+mapping of operation names to Python functions.
 
-![Klassendiagramm der API](docs/images/components.svg)
+![API class diagram](docs/images/components.svg)
 
-Die gefüllte Raute kennzeichnet Komposition, das hohle Dreieck Vererbung.
-Die gestrichelte Verbindung von `FunctionBackend` zu `Backend` kennzeichnet die
-strukturelle Erfüllung des Protokolls. Die Bibliothek enthält Typannotationen
-und eine `py.typed`-Kennzeichnung für Typprüfwerkzeuge.
+The filled diamond denotes composition; the hollow triangle denotes inheritance.
+The dashed connection from `FunctionBackend` to `Backend` indicates structural
+implementation of the protocol. The library includes type annotations and a
+`py.typed` marker for type-checking tools.
 
-## Lizenz
+## License
 
-Die Bibliothek steht unter [Apache-2.0](LICENSES/core-Apache-2.0.txt).
+The library is licensed under [Apache-2.0](LICENSES/core-Apache-2.0.txt).
