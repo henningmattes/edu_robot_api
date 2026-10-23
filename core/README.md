@@ -10,13 +10,26 @@ measurements and motion depend on the selected model and world.
 
 ## Installation
 
-Requires Python 3.11 or later. Install the supplied wheel with pip:
+Requires Python 3.11 or later. Install from PyPI with pip:
+
+```sh
+python -m pip install edu_robot_api
+```
+
+Alternatively, install a downloaded wheel:
 
 ```sh
 python -m pip install edu_robot_api-0.6.0-py3-none-any.whl
 ```
 
 In the RoboWorkbench web app, no local installation is needed.
+
+## Documentation
+
+See the [user guide and API overview](https://github.com/henningmattes/edu_robot_api#readme)
+for examples and the class diagram. The
+[source repository](https://github.com/henningmattes/edu_robot_api)
+also provides the library source code.
 
 ## Programming in RoboWorkbench
 

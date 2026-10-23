@@ -4,15 +4,15 @@
   "LICENSES/core-Apache-2.0.txt": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
   "README.md": "4e6481f88bae9d918a4b50dd3be8b2bb0a5ae5376be48ae1fed25a63137402f3",
   "core/LICENSE": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
-  "core/README.md": "2c1a55b3d152ab51f09ea38be6b97e67c36c38e0fa0eb2806e90f705d676448d",
+  "core/README.md": "30aaf4ee8754a4c40be4817d735877976df35250ee74fe9336e037fbb89808bd",
   "core/edu_robot_api/__init__.py": "7354f00d33eca75b5fe9d110766fb087411f8c453961812c4a128169d9618971",
   "core/edu_robot_api/components.py": "c2b6431785edb765c48f62c0a1ac529da90572e8e1d78f9db3ec40f703fecd30",
-  "core/edu_robot_api/connection.py": "ba50522e554ead141d15cbf92356b3f919e02c614a7442a95add979726a7d584",
+  "core/edu_robot_api/connection.py": "ac8febc2bc4a07aa3a0039c944698d546856e9928696d286bdf44941c732949f",
   "core/edu_robot_api/core.py": "5ba475da5fc0bfe4607e07b4f5df8a5f6e1ebc150454591f8d349be017f11e63",
   "core/edu_robot_api/imaging.py": "3415dea5eae8ad957a2961bf6ed87ee56ae530d493215bd7b39ad16489bfeae1",
   "core/edu_robot_api/py.typed": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-  "core/pyproject.toml": "28e5d3af645eae1f05e238e5fc3e09da0bccbc1f92b2c7440a6309ca1bd7a935",
+  "core/pyproject.toml": "8f65fe9c5404ea66ff9979288a056c1e79e02b9a562aaff5e07adf624f62ef22",
   "core/tests/test_public_package.py": "71e0b6bb7cba797a9aa230f5d0612b5ee20512c26f1933d02ba3a9b90245addb",
   "docs/images/components.svg": "9dd116923f4209341cfabcceda6f086fe65e8e6549437a00bbcbe576bffb1237",
-  "wheels/edu_robot_api-0.6.0-py3-none-any.whl": "7f1ec67598582d721b3f4abcfb87eb710a96f118f2c746929d414db4113a9913"
+  "wheels/edu_robot_api-0.6.0-py3-none-any.whl": "f5d6c4e6f06d1aaa00bcd11e28ba6d8dd49eafdd19e770d3298bf6e3b7032a39"
 }

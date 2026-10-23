@@ -12,6 +12,11 @@ license = "Apache-2.0"
 license-files = ["LICENSE"]
 classifiers = ["Programming Language :: Python :: 3", "Typing :: Typed", "Intended Audience :: Education", "Topic :: Education"]
 
+[project.urls]
+Documentation = "https://github.com/henningmattes/edu_robot_api#readme"
+Repository = "https://github.com/henningmattes/edu_robot_api"
+Issues = "https://github.com/henningmattes/edu_robot_api/issues"
+
 [project.optional-dependencies]
 images = ["numpy", "pillow"]
 
