@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "edu_robot_api"
+version = "0.6.0"
+description = "A typed Python robot API for education, independent of hardware and transport"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+classifiers = ["Programming Language :: Python :: 3", "Typing :: Typed", "Intended Audience :: Education", "Topic :: Education"]
+
+[project.optional-dependencies]
+images = ["numpy", "pillow"]
+
+[tool.setuptools.package-dir]
+"" = "."
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["edu_robot_api"]
+namespaces = false
+
+[tool.setuptools.package-data]
+edu_robot_api = ["py.typed"]
