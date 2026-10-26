@@ -13,8 +13,13 @@ from .components import (Actuator, Backend, Buzzer, Camera, CapabilityUnavailabl
 from .components import Bridge, WorkbenchBridge
 from .connection import connect_robot
 
-__version__ = "0.6.0"
+__version__ = "0.7.0"
 __all__ = ["Robot", "connect_robot", "Bridge", "WorkbenchBridge", "Sensor", "DistanceSensor", "LineSensor",
            "ContactSensor", "Camera", "SensorReadings", "Component", "Actuator", "Motor", "DCMotor",
            "ServoMotor", "RGBLights", "LEDMatrix", "Buzzer", "Kicker", "Backend", "FunctionBackend",
            "CapabilityUnavailable", "motor_pair", "percent"]
+
+from .components import (DifferentialDrive, HasDifferentialDrive, WheeledRobot,
+                         FlightController, HasFlightController, FlyingRobot)
+__all__ += ["DifferentialDrive", "HasDifferentialDrive", "WheeledRobot",
+            "FlightController", "HasFlightController", "FlyingRobot"]

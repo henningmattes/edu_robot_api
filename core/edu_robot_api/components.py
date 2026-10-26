@@ -3,9 +3,11 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from copy import deepcopy
-from typing import Any, Generic, Protocol, TypeVar, overload
+from typing import Any, Generic, Protocol, TypeVar, Self, overload
+from abc import ABC, abstractmethod
 
 T = TypeVar("T")
+RobotT = TypeVar("RobotT", bound="Robot")
 
 
 class CapabilityUnavailable(Exception):
@@ -134,7 +136,9 @@ class SensorReadings(Mapping[Sensor[Any] | str | int, Any]):
 
 
 class Actuator(Component):
-    pass
+    def prepare_write(self, value: Any) -> tuple[str, tuple[Any, ...]]:
+        """Validate a value without I/O; subclasses may define new operations."""
+        raise CapabilityUnavailable(type(self).__name__ + " has no scalar write operation")
 
 
 class Motor(Actuator):
@@ -143,7 +147,10 @@ class Motor(Actuator):
 
 class DCMotor(Motor):
     def set_power(self, power: float) -> None:
-        self._robot._set_motor(self, percent(power))
+        self._robot.write_actuators({self: power})
+
+    def prepare_write(self, value: Any) -> tuple[str, tuple[Any, ...]]:
+        return "motor", (percent(value),)
 
     def stop(self) -> None:
         self.set_power(0)
@@ -155,12 +162,20 @@ class ServoMotor(Motor):
         self.minimum, self.maximum = minimum, maximum
 
     def set_angle(self, angle: float) -> None:
+        self._robot.write_actuators({self: angle})
+
+    def prepare_write(self, angle: Any) -> tuple[str, tuple[Any, ...]]:
         if isinstance(angle, bool) or not isinstance(angle, (int, float)) or not self.minimum <= angle <= self.maximum:
             raise ValueError(f"Servowinkel muss zwischen {self.minimum} und {self.maximum} Grad liegen.")
-        self._robot._set_servo(self, angle)
+        return "servo", (angle,)
 
 
 class RGBLights(Actuator):
+    def prepare_write(self, value: Any) -> tuple[str, tuple[Any, ...]]:
+        if not isinstance(value, (tuple, list)) or len(value) != 3 or any(isinstance(v, bool) or not isinstance(v, int) or not 0 <= v <= 255 for v in value):
+            raise ValueError("Expected three RGB integers from 0 to 255.")
+        return "rgb_led", (-1, *value)
+
     def set_color(self, index: int | str, red: int, green: int, blue: int) -> None:
         if index == "all":
             index = -1
@@ -181,12 +196,24 @@ def _mode(value: int, maximum: int) -> None:
 
 
 class LEDMatrix(Actuator):
+    def prepare_write(self, value: Any) -> tuple[str, tuple[Any, ...]]:
+        _mode(value, 3)
+        return "matrix_mode", (value,)
+
     def set_mode(self, mode: int) -> None:
         _mode(mode, 3)
         self._robot._call("matrix_mode", mode)
 
 
 class Buzzer(Actuator):
+    def prepare_write(self, value: Any) -> tuple[str, tuple[Any, ...]]:
+        if not isinstance(value, (tuple, list)) or len(value) != 2:
+            raise ValueError("Expected (enabled, frequency).")
+        enabled, frequency = value
+        if not isinstance(enabled, bool) or isinstance(frequency, bool) or not isinstance(frequency, int) or not 20 <= frequency <= 20000:
+            raise ValueError("Expected bool and frequency between 20 and 20000 Hz.")
+        return "buzzer", (enabled, frequency)
+
     def set(self, enabled: bool = True, frequency: int = 2000) -> None:
         if not isinstance(enabled, bool) or isinstance(frequency, bool) or not isinstance(frequency, int) or not 20 <= frequency <= 20000:
             raise ValueError("Summer: bool und Frequenz 20 bis 20000 Hz erwartet.")
@@ -197,6 +224,9 @@ class Buzzer(Actuator):
 
 
 class Kicker(Actuator):
+    def prepare_write(self, value: Any) -> tuple[str, tuple[Any, ...]]:
+        return "kick", (max(0, percent(value)),)
+
     def kick(self, power: float = 75) -> None:
         self._robot._call("kick", max(0, percent(power)))
 
@@ -234,7 +264,15 @@ class SimulationView:
 class Robot:
     """One named connection, composed of components; operations delegate to a backend."""
     @staticmethod
-    def connect(name: str | None = None, *, bridge: Bridge | None = None,
+    @overload
+    def connect(*, bridge: Bridge[RobotT], speed: float = 60) -> RobotT: ...
+
+    @staticmethod
+    @overload
+    def connect(name: str | None = None, *, speed: float = 60, **options: Any) -> Robot: ...
+
+    @staticmethod
+    def connect(name: str | None = None, *, bridge: Bridge[Any] | None = None,
                 speed: float = 60, **options: Any) -> Robot:
         """Create a connected robot; release it with disconnect()."""
         if bridge is not None:
@@ -258,8 +296,10 @@ class Robot:
         for key in self._capabilities["sensors"]:
             cls: type[Sensor[Any]] = DistanceSensor if key.startswith("distance_") else LineSensor if key.startswith("line_") and key != "line_raw" else ContactSensor if key.startswith("bumper_") else Sensor
             self._sensors[key] = cls(self, key, key, position=key.split("_", 1)[1] if "_" in key else None)
-        count = self._capabilities.get("motor_count", 2)
-        wheel_names = ["motor_left", "motor_right"] if count == 2 else ["motor_front_left", "motor_rear_left", "motor_front_right", "motor_rear_right"]
+        count = self._capabilities.get("motor_count", 0)
+        if isinstance(count, bool) or not isinstance(count, int) or count < 0:
+            raise ValueError("motor_count must be a non-negative integer")
+        wheel_names = ["motor_left", "motor_right"] if count == 2 else ["motor_front_left", "motor_rear_left", "motor_front_right", "motor_rear_right"] if count == 4 else [f"motor_{i}" for i in range(count)]
         self._wheels = [DCMotor(self, key, key, position=key.removeprefix("motor_")) for key in wheel_names]
         self._powers = [0.0] * count
         self._angles = {"camera_pan": 90.0, "camera_tilt": 90.0}
@@ -281,9 +321,18 @@ class Robot:
             seen: set[str] = set()
             for spec in components:
                 identifier, label = spec.get("id"), spec.get("name")
-                if identifier not in known or identifier in seen or not isinstance(label, str) or not label.strip():
+                if not isinstance(identifier, str) or identifier in seen or not isinstance(label, str) or not label.strip():
                     raise ValueError("Ungültige Bauteilbeschreibung der Bridge.")
                 seen.add(identifier)
+                if identifier not in known:
+                    kind, separator, channel = identifier.partition(":")
+                    types = {c.__name__: c for c in (Sensor, DistanceSensor, LineSensor, ContactSensor, Camera,
+                                                     DCMotor, ServoMotor, RGBLights, LEDMatrix, Buzzer, Kicker)}
+                    component_type: Any = types.get(str(spec.get("type")))
+                    if not separator or not channel or component_type is None or (kind == "sensor") != issubclass(component_type, Sensor) or kind not in ("sensor", "actuator"):
+                        raise ValueError("Invalid component type or identifier: " + identifier)
+                    options = {k: spec[k] for k in ("minimum", "maximum") if k in spec} if component_type is ServoMotor else {}
+                    known[identifier] = component_type(self, channel, label, position=spec.get("position"), **options)
                 component = known[identifier]
                 if spec.get("type") != type(component).__name__:
                     raise ValueError("Bauteiltyp passt nicht zum Modell: " + identifier)
@@ -295,6 +344,9 @@ class Robot:
             if any(wheel.id not in seen for wheel in self._wheels):
                 raise ValueError("Die Beschreibung enthält nicht alle Antriebsmotoren.")
             self._sensors, self._actuators = sensors, actuators
+        self._wheels = [a for a in self._actuators.values() if isinstance(a, DCMotor)]
+        self._powers = [0.0] * len(self._wheels)
+        self._angles.update({a._channel: 90.0 for a in self._actuators.values() if isinstance(a, ServoMotor)})
 
     def _call(self, operation: str, *args: Any) -> Any:
         if self._closed:
@@ -335,57 +387,91 @@ class Robot:
         values = self._call("update_sensors") if any(not isinstance(s, Camera) for s in selected) else {}
         return SensorReadings(selected, [self._call("camera_image") if isinstance(s, Camera) else values.get(s._channel) for s in selected])
 
-    def _set_motor(self, motor: DCMotor, power: float) -> None:
-        powers = self._powers.copy()
-        powers[self._wheels.index(motor)] = power
-        self.set_motors(*powers)
+    def register_sensor(self, name: str, sensor: Sensor[Any]) -> None:
+        self._register(name, sensor, self._sensors, Sensor)
 
-    def _set_servo(self, servo: ServoMotor, angle: float) -> None:
-        angles = dict(self._angles)
-        angles[servo._channel] = angle
-        self._call("camera_orientation", angles["camera_pan"], angles["camera_tilt"])
-        self._angles = angles
+    def register_actuator(self, name: str, actuator: Actuator) -> None:
+        self._register(name, actuator, self._actuators, Actuator)
+        if isinstance(actuator, DCMotor) and actuator not in self._wheels:
+            self._wheels.append(actuator)
+            self._powers.append(0.0)
 
-    def set_motors(self, *powers: float) -> None:
-        if len(powers) != len(self._wheels):
-            raise ValueError("Anzahl der Motorwerte passt nicht zum Modell.")
-        values = [percent(p) for p in powers]
-        self._call("set_motors", *values)
-        self._powers = values
+    def _register(self, name: str, component: Component, registry: dict, expected: type) -> None:
+        if self._closed:
+            raise RuntimeError("Verbindung ist geschlossen.")
+        if not isinstance(component, expected) or component._robot is not self:
+            raise ValueError("Component belongs to another robot or collection.")
+        if not isinstance(name, str) or not name.strip() or name in registry or any(c.id == component.id for c in registry.values()):
+            raise ValueError("Invalid or duplicate component name/identifier.")
+        component._name = name
+        registry[name] = component
 
-    def drive(self, linear: float, turn: float = 0) -> None:
-        left, right = motor_pair(linear, turn)
-        self.set_motors(*([left, right] if len(self._wheels) == 2 else [left, left, right, right]))
+    def write_actuators(self, values: Mapping[Actuator | str, Any]) -> None:
+        """Validate the whole request before I/O. Batch-capable backends receive one request.
 
-    def forward(self, power: float | None = None) -> None:
-        self.drive(self._speed if power is None else percent(power))
-
-    def backward(self, power: float | None = None) -> None:
-        self.drive(-(self._speed if power is None else abs(percent(power))))
-
-    def turn_left(self, power: float | None = None) -> None:
-        self.drive(0, -(self._speed if power is None else abs(percent(power))))
-
-    def turn_right(self, power: float | None = None) -> None:
-        self.drive(0, self._speed if power is None else abs(percent(power)))
-
-    def stop(self) -> None:
-        self._call("stop")
-        self._powers = [0.0] * len(self._wheels)
-
-    def speed(self) -> float:
-        return self._speed
-
-    def set_speed(self, speed: float) -> None:
-        self._speed = abs(percent(speed))
+        Legacy backends group wheel powers and camera servos; other groups execute
+        in order, without a claim of hardware-level atomicity or rollback.
+        """
+        if self._closed:
+            raise RuntimeError("Verbindung ist geschlossen.")
+        if not isinstance(values, Mapping):
+            raise TypeError("Actuator values must be a mapping.")
+        prepared = []
+        seen = set()
+        for key, value in values.items():
+            actuator = self._actuators[key] if isinstance(key, str) else key
+            if not isinstance(actuator, Actuator) or actuator._robot is not self or self._actuators.get(actuator.name) is not actuator or actuator.id in seen:
+                raise ValueError("Unknown, foreign or duplicate actuator.")
+            seen.add(actuator.id)
+            operation, args = actuator.prepare_write(value)
+            prepared.append((actuator, operation, args))
+        if not prepared:
+            return
+        powers, angles = self._powers.copy(), dict(self._angles)
+        for actuator, operation, args in prepared:
+            if operation == "motor":
+                if not isinstance(actuator, DCMotor):
+                    raise ValueError("Motor operation requires a DCMotor")
+                powers[self._wheels.index(actuator)] = args[0]
+            elif operation == "servo":
+                angles[actuator._channel] = args[0]
+        if "write_actuators" in self._capabilities.get("commands", []):
+            self._call("write_actuators", [dict(id=a.id, operation=op, args=list(args)) for a, op, args in prepared])
+            self._powers, self._angles = powers, angles
+            return
+        # Check unsupported servos before issuing any command.
+        if any(op == "servo" and a._channel not in ("camera_pan", "camera_tilt") for a, op, _ in prepared):
+            raise CapabilityUnavailable("This backend needs write_actuators for arbitrary servos.")
+        commands = []
+        motor_group = servo_group = False
+        for actuator, operation, args in prepared:
+            if operation == "motor":
+                if not motor_group:
+                    commands.append(("set_motors", tuple(powers)))
+                    motor_group = True
+            elif operation == "servo":
+                if not servo_group:
+                    commands.append(("camera_orientation", (angles["camera_pan"], angles["camera_tilt"])))
+                    servo_group = True
+            else:
+                commands.append((operation, args))
+        for operation, args in commands:
+            self._call(operation, *args)
+            if operation == "set_motors":
+                self._powers = powers
+            elif operation == "camera_orientation":
+                self._angles = angles
 
     def capabilities(self) -> dict[str, Any]:
         result = deepcopy(self._capabilities)
         result["sensors"] = list(self._sensors)
         result["actuators"] = list(self._actuators)
-        result["commands"] = ["sensors", "actuators", "read_sensors", "rename", "drive", "set_motors",
-                              "forward", "backward", "turn_left", "turn_right", "stop", "speed",
-                              "set_speed", "time", "log", "disconnect", "close", "capabilities"]
+        result["commands"] = ["sensors", "actuators", "read_sensors", "write_actuators", "rename",
+                              "time", "log", "disconnect", "close", "capabilities"]
+        for command in ("drive", "forward", "backward", "turn_left", "turn_right", "stop",
+                        "set_motors", "speed", "set_speed", "fly", "takeoff", "land"):
+            if callable(getattr(self, command, None)):
+                result["commands"].append(command)
         return result
 
     def time(self) -> float:
@@ -399,18 +485,23 @@ class Robot:
         if self._closed:
             return
         try:
-            self.stop()
+            self._shutdown()
         finally:
             try:
                 self._backend.call("close")
             finally:
                 self._closed = True
 
+    def _shutdown(self) -> None:
+        # A backend owns its device-specific safe release policy.
+        self._call("stop")
+        self._powers = [0.0] * len(self._wheels)
+
     def close(self) -> None:
         """Compatibility alias for disconnect()."""
         self.disconnect()
 
-    def __enter__(self) -> Robot:
+    def __enter__(self) -> Self:
         if self._closed:
             raise RuntimeError("Verbindung ist geschlossen.")
         return self
@@ -419,11 +510,195 @@ class Robot:
         self.close()
 
 
-class Bridge:
+class DifferentialDrive(Actuator):
+    """One drive, referencing existing motors and an injected bound batch writer."""
+    def __init__(self, robot: Robot, left_motors: Sequence[DCMotor], right_motors: Sequence[DCMotor],
+                 write_actuators: Callable[[Mapping[Actuator | str, Any]], None], *, speed: float = 60) -> None:
+        super().__init__(robot, "drive", "drive")
+        motors = (*left_motors, *right_motors)
+        if not left_motors or not right_motors or len(set(motors)) != len(motors):
+            raise ValueError("Drive sides must be non-empty and disjoint.")
+        if any(not isinstance(m, DCMotor) or m._robot is not robot or robot.actuators().get(m.name) is not m for m in motors):
+            raise ValueError("Drive motors must be registered on this robot.")
+        self.__left, self.__right = tuple(left_motors), tuple(right_motors)
+        self.__write = write_actuators
+        self.set_speed(speed)
+
+    def drive(self, linear: float, turn: float = 0) -> None:
+        left, right = motor_pair(linear, turn)
+        self.__write({**{m: left for m in self.__left}, **{m: right for m in self.__right}})
+
+    def forward(self, power: float | None = None) -> None:
+        self.drive(self.__speed if power is None else percent(power))
+
+    def backward(self, power: float | None = None) -> None:
+        self.drive(-(self.__speed if power is None else abs(percent(power))))
+
+    def turn_left(self, power: float | None = None) -> None:
+        self.drive(0, -(self.__speed if power is None else abs(percent(power))))
+
+    def turn_right(self, power: float | None = None) -> None:
+        self.drive(0, self.__speed if power is None else abs(percent(power)))
+
+    def stop(self) -> None:
+        self.drive(0, 0)
+
+    def speed(self) -> float:
+        return self.__speed
+
+    def set_speed(self, speed: float) -> None:
+        self.__speed = abs(percent(speed))
+
+
+class HasDifferentialDrive(ABC):
+    @property
+    @abstractmethod
+    def differential_drive(self) -> DifferentialDrive: ...
+
+    def forward(self, power: float | None = None) -> None:
+        self.differential_drive.forward(power)
+
+    def backward(self, power: float | None = None) -> None:
+        self.differential_drive.backward(power)
+
+    def turn_left(self, power: float | None = None) -> None:
+        self.differential_drive.turn_left(power)
+
+    def turn_right(self, power: float | None = None) -> None:
+        self.differential_drive.turn_right(power)
+
+    def drive(self, linear: float, turn: float = 0) -> None:
+        self.differential_drive.drive(linear, turn)
+
+    def stop(self) -> None:
+        self.differential_drive.stop()
+
+    def speed(self) -> float:
+        return self.differential_drive.speed()
+
+    def set_speed(self, speed: float) -> None:
+        self.differential_drive.set_speed(speed)
+
+
+class WheeledRobot(Robot, HasDifferentialDrive):
+    """Neutral model for simulated or physical wheels; no vendor dependency."""
+    def __init__(self, *args: Any, left_motors: Sequence[str] | None = None,
+                 right_motors: Sequence[str] | None = None, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        by_channel = {m._channel: m for m in self._wheels}
+        if left_motors is None and right_motors is None:
+            left_motors = [m._channel for m in self._wheels if "left" in (m.position or m._channel)]
+            right_motors = [m._channel for m in self._wheels if "right" in (m.position or m._channel)]
+        if left_motors is None or right_motors is None:
+            raise ValueError("Specify both drive sides.")
+        self.__drive = DifferentialDrive(self, [by_channel[k] for k in left_motors],
+                                        [by_channel[k] for k in right_motors], self.write_actuators,
+                                        speed=self._speed)
+        self.register_actuator("drive", self.__drive)
+
+    @property
+    def differential_drive(self) -> DifferentialDrive:
+        return self.__drive
+
+    def set_motors(self, *powers: float) -> None:
+        """Compatibility shortcut; new programs can use write_actuators."""
+        if len(powers) != len(self._wheels):
+            raise ValueError("Anzahl der Motorwerte passt nicht zum Modell.")
+        self.write_actuators(dict(zip(self._wheels, powers)))
+
+
+class FlightController(Actuator):
+    """Normalized motion commands, not rotor power or guaranteed velocity."""
+    def __init__(self, robot: Robot, *, speed: float = 30) -> None:
+        super().__init__(robot, "flight", "flight")
+        self.set_speed(speed)
+
+    def takeoff(self) -> None:
+        self._robot._call("takeoff")
+
+    def land(self) -> None:
+        self._robot._call("land")
+
+    def fly(self, forward: float = 0, right: float = 0, up: float = 0, yaw: float = 0) -> None:
+        self._robot._call("flight_control", *(percent(v) for v in (forward, right, up, yaw)))
+
+    def forward(self, power: float | None = None) -> None:
+        self.fly(forward=self.__speed if power is None else power)
+
+    def backward(self, power: float | None = None) -> None:
+        self.fly(forward=-(self.__speed if power is None else abs(percent(power))))
+
+    def turn_left(self, power: float | None = None) -> None:
+        self.fly(yaw=-(self.__speed if power is None else abs(percent(power))))
+
+    def turn_right(self, power: float | None = None) -> None:
+        self.fly(yaw=self.__speed if power is None else abs(percent(power)))
+
+    def hover(self) -> None:
+        self._robot._call("hover")
+
+    def stop(self) -> None:
+        self.hover()
+
+    def speed(self) -> float:
+        return self.__speed
+
+    def set_speed(self, speed: float) -> None:
+        self.__speed = abs(percent(speed))
+
+
+class HasFlightController(ABC):
+    @property
+    @abstractmethod
+    def flight_controller(self) -> FlightController: ...
+
+    def takeoff(self) -> None:
+        self.flight_controller.takeoff()
+
+    def land(self) -> None:
+        self.flight_controller.land()
+
+    def fly(self, forward: float = 0, right: float = 0, up: float = 0, yaw: float = 0) -> None:
+        self.flight_controller.fly(forward, right, up, yaw)
+
+    def forward(self, power: float | None = None) -> None:
+        self.flight_controller.forward(power)
+
+    def backward(self, power: float | None = None) -> None:
+        self.flight_controller.backward(power)
+
+    def turn_left(self, power: float | None = None) -> None:
+        self.flight_controller.turn_left(power)
+
+    def turn_right(self, power: float | None = None) -> None:
+        self.flight_controller.turn_right(power)
+
+    def stop(self) -> None:
+        self.flight_controller.stop()
+
+    def speed(self) -> float:
+        return self.flight_controller.speed()
+
+    def set_speed(self, speed: float) -> None:
+        self.flight_controller.set_speed(speed)
+
+
+class FlyingRobot(Robot, HasFlightController):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.__flight = FlightController(self, speed=self._speed)
+        self.register_actuator("flight", self.__flight)
+
+    @property
+    def flight_controller(self) -> FlightController:
+        return self.__flight
+
+
+class Bridge(Generic[RobotT]):
     """Lifecycle of an explicitly selected robot endpoint. Factories do no I/O."""
     def __init__(self) -> None:
         self._started = False
-        self._connection: Robot | None = None
+        self._connection: RobotT | None = None
 
     def start(self) -> None:
         raise NotImplementedError
@@ -437,11 +712,11 @@ class Bridge:
         if self._connection is not None and not self._connection._closed:
             raise RuntimeError("Diese Bridge hat bereits eine Steuerverbindung.")
 
-    def _connect(self, *, speed: float = 60) -> Robot:
+    def _connect(self, *, speed: float = 60) -> RobotT:
         raise NotImplementedError
 
 
-class WorkbenchBridge(Bridge):
+class WorkbenchBridge(Bridge[WheeledRobot]):
     """Select a robot in the current Workbench world; no native process."""
     robot_name: str
     @classmethod
@@ -460,7 +735,7 @@ class WorkbenchBridge(Bridge):
         prepare(self.robot_name)
         self._started = True
 
-    def _connect(self, *, speed: float = 60) -> Robot:
+    def _connect(self, *, speed: float = 60) -> WheeledRobot:
         self._require_ready()
         import edu_robot_api
         self._connection = edu_robot_api.connect_robot(self.robot_name, speed=speed)

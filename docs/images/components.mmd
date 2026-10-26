@@ -1,0 +1,101 @@
+---
+title: edu_robot_api 0.7 - components and capabilities
+config:
+  theme: base
+  class:
+    hideEmptyMembersBox: true
+---
+classDiagram
+    direction TB
+    class Robot {
+        +connect(bridge) T$
+        +sensors() dict
+        +actuators() dict
+        +read_sensors(selection) SensorReadings
+        +write_actuators(values) None
+        +register_sensor(name, sensor) None
+        +register_actuator(name, actuator) None
+        +disconnect() None
+    }
+    class Backend {
+        <<protocol>>
+        +call(operation, args) Any
+    }
+    class FunctionBackend
+    class Component {
+        +str id
+        +str name
+        +str position
+    }
+    class Sensor {
+        +read() Value
+    }
+    class Actuator {
+        +prepare_write(value) Operation
+    }
+    class DCMotor {
+        +set_power(power) None
+    }
+    class ServoMotor {
+        +set_angle(angle) None
+    }
+    class Camera
+    class HasDifferentialDrive {
+        <<abstract>>
+        +DifferentialDrive differential_drive
+        +forward(power) None
+        +drive(linear, turn) None
+        +stop() None
+    }
+    class DifferentialDrive {
+        +forward(power) None
+        +drive(linear, turn) None
+        +stop() None
+    }
+    class HasFlightController {
+        <<abstract>>
+        +FlightController flight_controller
+        +takeoff() None
+        +fly(forward, right, up, yaw) None
+        +land() None
+        +stop() None
+    }
+    class FlightController {
+        +takeoff() None
+        +fly(forward, right, up, yaw) None
+        +land() None
+        +hover() None
+    }
+    class WheeledRobot
+    class FlyingRobot
+    Component <|-- Sensor
+    Component <|-- Actuator
+    Sensor <|-- Camera
+    Actuator <|-- Motor
+    Motor <|-- DCMotor
+    Motor <|-- ServoMotor
+    Actuator <|-- DifferentialDrive
+    Actuator <|-- FlightController
+    Robot o--> Sensor : sensors
+    Robot o--> Actuator : actuators
+    Robot --> Backend : delegates
+    Backend <|.. FunctionBackend : structural protocol
+    Robot <|-- WheeledRobot
+    HasDifferentialDrive <|-- WheeledRobot
+    Robot <|-- FlyingRobot
+    HasFlightController <|-- FlyingRobot
+    HasDifferentialDrive --> DifferentialDrive : differential_drive
+    HasFlightController --> FlightController : flight_controller
+    DifferentialDrive --> DCMotor : existing left / right motors
+    WheeledRobot ..> DifferentialDrive : creates
+    FlyingRobot ..> FlightController : creates
+    note for DifferentialDrive "Calls the bound robot.write_actuators method.<br/>Motor objects remain individually accessible."
+    style Robot fill:#dbeafe,stroke:#2563eb
+    style Sensor fill:#dbeafe,stroke:#2563eb
+    style Actuator fill:#dbeafe,stroke:#2563eb
+    style HasDifferentialDrive fill:#dcfce7,stroke:#16a34a
+    style HasFlightController fill:#dcfce7,stroke:#16a34a
+    style DifferentialDrive fill:#fef3c7,stroke:#d97706
+    style FlightController fill:#fef3c7,stroke:#d97706
+    style WheeledRobot fill:#f3e8ff,stroke:#9333ea
+    style FlyingRobot fill:#f3e8ff,stroke:#9333ea
